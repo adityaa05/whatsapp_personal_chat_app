@@ -1,3 +1,4 @@
+from app.api.auth import get_current_user
 import re
 import uuid
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,7 +12,11 @@ router = APIRouter()
 
 
 @router.post("/", response_model=Note)
-def create_note(note: Note, session: Session = Depends(get_session)):
+def create_note(
+    note: Note,
+    session: Session = Depends(get_session),
+    user: str = Depends(get_current_user),
+):
     """Saves a new note and auto-extracts #tags."""
     extracted_tags = set(re.findall(r"#(\w+)", note.content))
 
@@ -44,6 +49,7 @@ def read_notes(
     skip: int = 0,
     limit: int = 100,
     session: Session = Depends(get_session),
+    user: str = Depends(get_current_user),
 ):
     """Retrieves notes and neatly packages their tags and comments."""
     statement = select(Note).order_by(Note.created_at.desc())
@@ -70,7 +76,10 @@ def read_notes(
 
 @router.post("/{note_id}/comments")
 def add_comment_to_note(
-    note_id: uuid.UUID, comment: Comment, session: Session = Depends(get_session)
+    note_id: uuid.UUID,
+    comment: Comment,
+    session: Session = Depends(get_session),
+    user: str = Depends(get_current_user),
 ):
     """Attaches a personal context comment to a specific note."""
     db_note = session.get(Note, note_id)

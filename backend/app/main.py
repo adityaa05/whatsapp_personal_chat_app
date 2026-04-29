@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db.session import create_db_and_tables
-from app.api import notes, tags
+from app.api import notes, tags, auth
 
 
 # Run this function before the server starts taking requests
@@ -29,6 +29,7 @@ app.add_middleware(
 )
 
 # Connect the notes router
+app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(notes.router, prefix="/api/notes", tags=["Notes"])
 app.include_router(tags.router, prefix="/api/tags", tags=["Tags"])
 
