@@ -1,28 +1,35 @@
 import { create } from "zustand";
 import { api } from "../services/api";
 
-export const useStore = create((set) => ({
+export const useStore = create((set, get) => ({
   notes: [],
+  activeTag: null, // Keeps track of what we are filtering by
   isLoading: false,
   error: null,
 
-  // Action to load notes from the backend
+  // Set the active tag and fetch notes immediately
+  setActiveTag: (tag) => {
+    set({ activeTag: tag });
+    get().fetchNotes();
+  },
+
   fetchNotes: async () => {
     set({ isLoading: true });
     try {
-      const notes = await api.getNotes();
+      // Pass the current active tag to the API
+      const currentTag = get().activeTag;
+      const notes = await api.getNotes(currentTag);
       set({ notes, isLoading: false, error: null });
     } catch (error) {
       set({ error: error.message, isLoading: false });
     }
   },
 
-  // Action to post a new note and update the UI immediately
   addNote: async (content) => {
     try {
-      const newNote = await api.createNote(content);
-      // Put the new note at the top of the array
-      set((state) => ({ notes: [newNote, ...state.notes] }));
+      await api.createNote(content);
+      // Refresh the list to show the new note (and apply current filters)
+      get().fetchNotes();
     } catch (error) {
       set({ error: error.message });
     }
