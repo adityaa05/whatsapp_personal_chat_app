@@ -1,0 +1,36 @@
+services:
+  # 1. The PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: knowledge_base_db
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: knowledge_base
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # 2. The FastAPI Backend
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: knowledge_base_api
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      # This URL connects the API to the local Docker database
+      DATABASE_URL: postgresql://user:password@db:5432/knowledge_base
+    depends_on:
+      - db
+    volumes:
+      # Maps your local code to the container for live reloading
+      - ./backend:/app
+
+volumes:
+  # This ensures your local database data isn't wiped when you stop Docker
+  pgdata:
