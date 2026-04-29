@@ -3,20 +3,28 @@ import { api } from "../services/api";
 
 export const useStore = create((set, get) => ({
   notes: [],
-  activeTag: null, // Keeps track of what we are filtering by
+  tags: [],
+  activeTag: null,
   isLoading: false,
   error: null,
 
-  // Set the active tag and fetch notes immediately
   setActiveTag: (tag) => {
     set({ activeTag: tag });
     get().fetchNotes();
   },
 
+  fetchTags: async () => {
+    try {
+      const tags = await api.getTags();
+      set({ tags });
+    } catch (error) {
+      console.error("Failed to fetch tags", error);
+    }
+  },
+
   fetchNotes: async () => {
     set({ isLoading: true });
     try {
-      // Pass the current active tag to the API
       const currentTag = get().activeTag;
       const notes = await api.getNotes(currentTag);
       set({ notes, isLoading: false, error: null });
@@ -28,10 +36,20 @@ export const useStore = create((set, get) => ({
   addNote: async (content) => {
     try {
       await api.createNote(content);
-      // Refresh the list to show the new note (and apply current filters)
       get().fetchNotes();
+      get().fetchTags();
     } catch (error) {
       set({ error: error.message });
+    }
+  },
+
+  // NEW: Submit a comment and refresh the feed
+  addComment: async (noteId, content) => {
+    try {
+      await api.addComment(noteId, content);
+      get().fetchNotes(); // Instantly re-fetch to show the new comment
+    } catch (error) {
+      console.error("Failed to post comment", error);
     }
   },
 }));
