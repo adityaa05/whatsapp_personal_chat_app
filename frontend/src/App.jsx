@@ -1,26 +1,32 @@
 import React, { useEffect } from "react";
 import NoteList from "./components/NoteList";
 import ChatInput from "./components/ChatInput";
+import Login from "./components/Login";
 import { useStore } from "./store/useStore";
 
 function App() {
-  const { tags, activeTag, setActiveTag, fetchTags } = useStore();
+  const { tags, activeTag, setActiveTag, fetchTags, token, logout } =
+    useStore();
 
-  // Load tags when the app first starts
+  // Only load tags if we are logged in
   useEffect(() => {
-    fetchTags();
-  }, [fetchTags]);
+    if (token) fetchTags();
+  }, [token, fetchTags]);
 
+  // THE BOUNCER: If no token, show login screen
+  if (!token) {
+    return <Login />;
+  }
+
+  // If logged in, show the secure app
   return (
     <div className="flex h-screen bg-slate-50">
-      {/* Sidebar */}
       <div className="w-64 bg-slate-900 text-slate-300 p-4 hidden md:flex flex-col overflow-y-auto">
         <h1 className="text-xl font-bold text-white mb-6 tracking-tight">
           Knowledge Base
         </h1>
 
         <div className="text-sm space-y-2 flex-1">
-          {/* "All Notes" Button */}
           <p
             onClick={() => setActiveTag(null)}
             className={`cursor-pointer px-2 py-1.5 rounded-md transition-colors font-medium ${
@@ -34,7 +40,6 @@ function App() {
 
           <div className="my-4 border-b border-slate-700"></div>
 
-          {/* Dynamic Tags List */}
           {tags.map((tag) => (
             <p
               key={tag.id}
@@ -50,12 +55,17 @@ function App() {
           ))}
         </div>
 
-        <div className="text-xs text-slate-500 pt-4 mt-4 border-t border-slate-800">
-          PostgreSQL Connected
+        {/* NEW: Logout Button */}
+        <div className="pt-4 mt-4 border-t border-slate-800">
+          <button
+            onClick={logout}
+            className="w-full text-left px-2 py-1.5 text-sm text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-md transition-colors"
+          >
+            Log Out
+          </button>
         </div>
       </div>
 
-      {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full max-w-5xl mx-auto border-x border-slate-200 bg-white shadow-sm w-full relative">
         <header className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white z-10">
           <h2 className="text-lg font-semibold text-slate-800">
