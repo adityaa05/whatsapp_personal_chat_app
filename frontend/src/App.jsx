@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import Login from "./components/Login";
 import NoteCard from "./components/Notecard";
-import NoteInput from "./components/NoteList";
+import NoteInput from "./components/Noteinput";
 import { useStore } from "./store/useStore";
 
 function HeaderClock() {
@@ -15,7 +15,7 @@ function HeaderClock() {
   const time = `${pad(t.getHours())}:${pad(t.getMinutes())}`;
   return (
     <span className="header-time">
-      ⏱ {d} {time}
+      {d} {time}
     </span>
   );
 }
@@ -25,22 +25,17 @@ export default function App() {
     token,
     logout,
     notes,
-    tags,
     isLoading,
     error,
-    activeTag,
-    setActiveTag,
     searchQuery,
     setSearchQuery,
     fetchNotes,
-    fetchTags,
   } = useStore();
-
+  
   const [searchDraft, setSearchDraft] = useState("");
 
   useEffect(() => {
     if (token) {
-      fetchTags();
       fetchNotes();
     }
   }, [token]);
@@ -55,10 +50,10 @@ export default function App() {
 
   useEffect(() => {
     if (token) fetchNotes();
-  }, [searchQuery, activeTag]);
+  }, [searchQuery]);
 
   if (!token) return <Login />;
-
+  
   const pinnedCount = notes.filter((n) => n.is_pinned).length;
 
   return (
@@ -68,23 +63,18 @@ export default function App() {
         <div className="header-brand">
           <div className="brand-logo">KB</div>
           <div className="brand-name">
-            Knowledge<em>BASE</em>®
+            Knowledge<em>BASE</em>
           </div>
         </div>
-
         <div className="header-center">
           <span className="search-icon">🔍</span>
           <input
             className="search-input"
-            placeholder="Search notes..."
+            placeholder="Search notes and annotations..."
             value={searchDraft}
-            onChange={(e) => {
-              setSearchDraft(e.target.value);
-              if (activeTag) setActiveTag(null);
-            }}
+            onChange={(e) => setSearchDraft(e.target.value)}
           />
         </div>
-
         <div className="header-right">
           <span className="header-welcome">Welcome, administrator!</span>
           <HeaderClock />
@@ -100,29 +90,20 @@ export default function App() {
         {/* SIDEBAR */}
         <nav id="sidebar">
           <div className="sidebar-section-label">Navigation</div>
-
           <div
-            className={`nav-item${!activeTag && !searchQuery ? " active" : ""}`}
-            onClick={() => {
-              setActiveTag(null);
-              setSearchDraft("");
-            }}
+            className={`nav-item${!searchQuery ? " active" : ""}`}
+            onClick={() => setSearchDraft("")}
           >
-            <span className="nav-icon">📋</span>
+            <span className="nav-icon">📄</span>
             All Notes
             <span className="nav-badge">{notes.length}</span>
           </div>
-
           {pinnedCount > 0 && (
             <div
-              className={`nav-item${activeTag === "__pinned__" ? " active" : ""}`}
+              className="nav-item"
               onClick={() => {
                 setSearchDraft("");
-                setActiveTag(null);
                 useStore.setState({ notes: notes.filter((n) => n.is_pinned) });
-              }}
-              style={{
-                color: activeTag === "__pinned__" ? "white" : "#f5c842",
               }}
             >
               <span className="nav-icon">📌</span>
@@ -133,37 +114,13 @@ export default function App() {
             </div>
           )}
 
-          {tags.length > 0 && (
-            <>
-              <div className="sidebar-section-label" style={{ marginTop: 6 }}>
-                Tags
-              </div>
-              {tags.map((tag) => (
-                <div
-                  key={tag.id}
-                  className={`nav-item${activeTag === tag.name ? " active" : ""}`}
-                  onClick={() => {
-                    setActiveTag(tag.name);
-                    setSearchDraft("");
-                  }}
-                >
-                  <span className="nav-icon" style={{ fontSize: "10px" }}>
-                    #
-                  </span>
-                  <span className="truncate">{tag.name}</span>
-                </div>
-              ))}
-            </>
-          )}
-
           <div className="sidebar-spacer" />
-
           <div
             className="nav-item"
             onClick={logout}
             style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}
           >
-            <span className="nav-icon">🔓</span>
+            <span className="nav-icon">🚪</span>
             Sign Out
           </div>
         </nav>
@@ -173,30 +130,26 @@ export default function App() {
           {/* TOOLBAR */}
           <div id="toolbar">
             <span className="toolbar-title">My Notes</span>
-            {(activeTag || searchQuery) && (
+            {searchQuery && (
               <>
                 <span className="toolbar-sep">/</span>
                 <span className="toolbar-crumb">
-                  {activeTag ? `#${activeTag}` : `Search: "${searchQuery}"`}
+                  Search: "{searchQuery}"
                 </span>
               </>
             )}
-
             <div className="toolbar-right">
               <span className="record-count">
                 {isLoading
                   ? "Loading..."
                   : `${notes.length} record${notes.length !== 1 ? "s" : ""}`}
               </span>
-              {(activeTag || searchQuery) && (
+              {searchQuery && (
                 <button
                   className="tb-filter-btn"
-                  onClick={() => {
-                    setActiveTag(null);
-                    setSearchDraft("");
-                  }}
+                  onClick={() => setSearchDraft("")}
                 >
-                  ✕ Clear filter
+                  ❌ Clear filter
                 </button>
               )}
             </div>
@@ -211,13 +164,13 @@ export default function App() {
               </div>
             ) : error ? (
               <div className="state-box">
-                <div className="state-icon">⚠</div>
+                <div className="state-icon">❌</div>
                 <div className="state-label">Database Error</div>
                 <div className="state-sub">{error}</div>
               </div>
             ) : notes.length === 0 ? (
               <div className="state-box">
-                <div className="state-icon">📭</div>
+                <div className="state-icon">📝</div>
                 <div className="state-label">
                   {searchQuery
                     ? `No results for "${searchQuery}"`
@@ -226,7 +179,7 @@ export default function App() {
                 <div className="state-sub">
                   {searchQuery
                     ? "Try a different search term or clear the filter"
-                    : "Use the input below to start adding notes. Paste anything — links, code, text, markdown."}
+                    : "Use the input below to start adding notes. Paste anything: links, code, text, markdown."}
                 </div>
               </div>
             ) : (
@@ -244,7 +197,7 @@ export default function App() {
       {/* FOOTER */}
       <footer id="footer">
         <span className="footer-left">FastAPI + PostgreSQL + React</span>
-        <span>Powered by KnowledgeBASE® v2.0</span>
+        <span>Powered by KnowledgeBASE v2.0</span>
       </footer>
     </div>
   );

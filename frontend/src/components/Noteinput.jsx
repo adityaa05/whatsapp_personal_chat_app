@@ -33,13 +33,12 @@ export default function NoteInput() {
           onChange={(e) => setContent(e.target.value)}
           onKeyDown={onKey}
           rows={3}
-          placeholder="Paste text, Markdown, code, links, or anything... Type #tag to auto-tag. Enter to save, Shift+Enter for new line."
+          placeholder="Paste text, Markdown, code, links, or anything... Enter to save, Shift+Enter for new line."
         />
         <div className="input-footer">
           <div className="input-hint">
-            <kbd>Enter</kbd> to save &nbsp;·&nbsp; <kbd>Shift+Enter</kbd> new
-            line &nbsp;·&nbsp; use <strong>#tag</strong> to auto-tag
-            &nbsp;·&nbsp;
+            <kbd>Enter</kbd> to save &nbsp; &nbsp; <kbd>Shift+Enter</kbd> new
+            line &nbsp; &nbsp;
             <span
               style={{ color: charCount > 1000 ? "var(--gold)" : "inherit" }}
             >
@@ -59,7 +58,7 @@ export default function NoteInput() {
               onClick={submit}
               disabled={!content.trim() || isSaving}
             >
-              {isSaving ? "Saving..." : "Save Note →"}
+              {isSaving ? "Saving..." : "Save Note"}
             </button>
           </div>
         </div>

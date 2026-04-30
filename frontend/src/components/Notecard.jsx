@@ -30,7 +30,6 @@ export default function NoteCard({ note, index }) {
     }
   };
 
-  // Truncate content preview
   const isLong = note.content.length > 800;
   const [showFull, setShowFull] = useState(!isLong);
 
@@ -39,22 +38,10 @@ export default function NoteCard({ note, index }) {
       {/* Header */}
       <div className="note-header">
         <span className="note-num">#{String(index).padStart(4, "0")}</span>
-        <span className="note-date">📅 {formatDate(note.created_at)}</span>
-
+        <span className="note-date">🗓️ {formatDate(note.created_at)}</span>
         {note.is_pinned && (
           <span className="note-tag pinned-tag">📌 PINNED</span>
         )}
-
-        {note.tags && note.tags.length > 0 && (
-          <div className="note-tags">
-            {note.tags.map((t) => (
-              <span key={t} className="note-tag">
-                #{t}
-              </span>
-            ))}
-          </div>
-        )}
-
         <div className="note-actions">
           <button
             className={`na-btn pin${note.is_pinned ? " active-pin" : ""}`}
@@ -68,7 +55,7 @@ export default function NoteCard({ note, index }) {
             onClick={() => setExpanded((v) => !v)}
             title={expanded ? "Collapse" : "Expand"}
           >
-            {expanded ? "▲" : "▼"}
+            {expanded ? "🔽" : "▶️"}
           </button>
           <button
             className={`na-btn del${showConfirmDelete ? " active-pin" : ""}`}
@@ -84,7 +71,7 @@ export default function NoteCard({ note, index }) {
                 : {}
             }
           >
-            {showConfirmDelete ? "✓ Confirm?" : "✕"}
+            {showConfirmDelete ? "⚠️ Confirm?" : "🗑️"}
           </button>
         </div>
       </div>
@@ -113,7 +100,7 @@ export default function NoteCard({ note, index }) {
                   padding: 0,
                 }}
               >
-                {showFull ? "▲ Show less" : "▼ Show full note"}
+                {showFull ? "🔼 Show less" : "🔽 Show full note"}
               </button>
             )}
           </div>
@@ -121,25 +108,23 @@ export default function NoteCard({ note, index }) {
           {/* Comments */}
           <div className="note-comments">
             <div className="comments-label">Annotations / Context</div>
-
             {note.comments && note.comments.length > 0 && (
               <div style={{ marginBottom: 5 }}>
                 {note.comments.map((c) => (
                   <div key={c.id} className="comment-item">
-                    <span className="comment-dot">›</span>
+                    <span className="comment-dot">💬</span>
                     <span className="comment-text">{c.content}</span>
                     <button
                       className="comment-del"
                       onClick={() => deleteComment(note.id, c.id)}
                       title="Remove annotation"
                     >
-                      ✕
+                      ❌
                     </button>
                   </div>
                 ))}
               </div>
             )}
-
             <form onSubmit={handleComment} className="comment-form">
               <input
                 className="ei comment-form .ei"

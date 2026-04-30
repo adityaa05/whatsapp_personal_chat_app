@@ -1,19 +1,16 @@
-import re
 import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select, or_
 from typing import Optional
-
 from app.db.session import get_session
-from app.models.models import Note, Tag, NoteTagLink, Comment
+from app.models.models import Note, Comment
 from app.api.auth import get_current_user
 
 router = APIRouter()
 
 
 def serialize_note(note):
-    d = note.model_dump()
-    d["tags"] = [t.name for t in note.tags]
+    d = note.dict()
     d["comments"] = [
         {"id": str(c.id), "content": c.content, "created_at": c.created_at.isoformat()}
         for c in sorted(note.comments, key=lambda x: x.created_at)
@@ -29,21 +26,7 @@ def create_note(
     session: Session = Depends(get_session),
     user: str = Depends(get_current_user),
 ):
-    extracted_tags = set(re.findall(r"#(\w+)", note.content))
     session.add(note)
-    session.commit()
-    session.refresh(note)
-
-    for tag_name in extracted_tags:
-        clean = tag_name.lower()
-        existing = session.exec(select(Tag).where(Tag.name == clean)).first()
-        if not existing:
-            existing = Tag(name=clean)
-            session.add(existing)
-            session.commit()
-            session.refresh(existing)
-        session.add(NoteTagLink(note_id=note.id, tag_id=existing.id))
-
     session.commit()
     session.refresh(note)
     return serialize_note(note)
@@ -51,7 +34,6 @@ def create_note(
 
 @router.get("/")
 def read_notes(
-    tag: Optional[str] = None,
     q: Optional[str] = None,
     pinned: Optional[bool] = None,
     skip: int = 0,
@@ -61,10 +43,11 @@ def read_notes(
 ):
     stmt = select(Note)
 
-    if tag:
-        stmt = stmt.join(NoteTagLink).join(Tag).where(Tag.name == tag.lower())
     if q:
-        stmt = stmt.where(Note.content.ilike(f"%{q}%"))
+        stmt = stmt.outerjoin(Comment).where(
+            or_(Note.content.ilike(f"%{q}%"), Comment.content.ilike(f"%{q}%"))
+        )
+
     if pinned is not None:
         stmt = stmt.where(Note.is_pinned == pinned)
 
@@ -72,7 +55,7 @@ def read_notes(
     stmt = stmt.order_by(Note.is_pinned.desc(), Note.created_at.desc())
     stmt = stmt.offset(skip).limit(limit)
 
-    notes = session.exec(stmt).all()
+    notes = session.exec(stmt).unique().all()
     return [serialize_note(n) for n in notes]
 
 
@@ -85,6 +68,7 @@ def toggle_pin(
     note = session.get(Note, note_id)
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
+
     note.is_pinned = not note.is_pinned
     session.add(note)
     session.commit()
@@ -101,6 +85,7 @@ def delete_note(
     note = session.get(Note, note_id)
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
+
     session.delete(note)
     session.commit()
     return {"deleted": True}
@@ -116,10 +101,12 @@ def add_comment(
     note = session.get(Note, note_id)
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
+
     comment.note_id = note_id
     session.add(comment)
     session.commit()
     session.refresh(comment)
+
     return {
         "id": str(comment.id),
         "content": comment.content,
@@ -137,6 +124,7 @@ def delete_comment(
     comment = session.get(Comment, comment_id)
     if not comment or comment.note_id != note_id:
         raise HTTPException(status_code=404, detail="Comment not found")
+
     session.delete(comment)
     session.commit()
     return {"deleted": True}

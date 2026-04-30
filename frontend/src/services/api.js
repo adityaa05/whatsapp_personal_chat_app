@@ -27,56 +27,46 @@ export const api = {
       }),
     );
   },
-
-  getNotes: (tag = null, q = null, pinned = null) => {
+  getNotes: async (q = null, pinned = null) => {
     const params = new URLSearchParams();
-    if (tag) params.set("tag", tag);
     if (q) params.set("q", q);
     if (pinned !== null) params.set("pinned", pinned);
     const url = `${API_URL}/notes/${params.toString() ? "?" + params : ""}`;
-    return handle(fetch(url, { headers: getHeaders(false) }));
+    return handle(await fetch(url, { headers: getHeaders(false) }));
   },
-
-  getTags: () =>
-    handle(fetch(`${API_URL}/tags/`, { headers: getHeaders(false) })),
-
-  createNote: (content) =>
+  createNote: async (content) =>
     handle(
-      fetch(`${API_URL}/notes/`, {
+      await fetch(`${API_URL}/notes/`, {
         method: "POST",
         headers: getHeaders(),
         body: JSON.stringify({ content, type: "text" }),
       }),
     ),
-
-  togglePin: (noteId) =>
+  togglePin: async (noteId) =>
     handle(
-      fetch(`${API_URL}/notes/${noteId}/pin`, {
+      await fetch(`${API_URL}/notes/${noteId}/pin`, {
         method: "PATCH",
         headers: getHeaders(false),
       }),
     ),
-
-  deleteNote: (noteId) =>
+  deleteNote: async (noteId) =>
     handle(
-      fetch(`${API_URL}/notes/${noteId}`, {
+      await fetch(`${API_URL}/notes/${noteId}`, {
         method: "DELETE",
         headers: getHeaders(false),
       }),
     ),
-
-  addComment: (noteId, content) =>
+  addComment: async (noteId, content) =>
     handle(
-      fetch(`${API_URL}/notes/${noteId}/comments`, {
+      await fetch(`${API_URL}/notes/${noteId}/comments`, {
         method: "POST",
         headers: getHeaders(),
         body: JSON.stringify({ content }),
       }),
     ),
-
-  deleteComment: (noteId, commentId) =>
+  deleteComment: async (noteId, commentId) =>
     handle(
-      fetch(`${API_URL}/notes/${noteId}/comments/${commentId}`, {
+      await fetch(`${API_URL}/notes/${noteId}/comments/${commentId}`, {
         method: "DELETE",
         headers: getHeaders(false),
       }),

@@ -9,8 +9,6 @@ export const useStore = create((set, get) => ({
 
   // UI state
   notes: [],
-  tags: [],
-  activeTag: null,
   searchQuery: "",
   isLoading: false,
   error: null,
@@ -22,7 +20,6 @@ export const useStore = create((set, get) => ({
       const data = await api.login(username, password);
       localStorage.setItem("kb_token", data.access_token);
       set({ token: data.access_token, isLoggingIn: false });
-      get().fetchTags();
       get().fetchNotes();
     } catch (err) {
       set({ authError: err.message, isLoggingIn: false });
@@ -34,38 +31,21 @@ export const useStore = create((set, get) => ({
     set({
       token: null,
       notes: [],
-      tags: [],
-      activeTag: null,
       searchQuery: "",
       authError: null,
     });
-  },
-
-  setActiveTag: (tag) => {
-    set({ activeTag: tag, searchQuery: "" });
-    get().fetchNotes();
   },
 
   setSearchQuery: (q) => {
     set({ searchQuery: q });
   },
 
-  fetchTags: async () => {
-    if (!get().token) return;
-    try {
-      const tags = await api.getTags();
-      set({ tags });
-    } catch (e) {
-      console.error("fetchTags:", e);
-    }
-  },
-
   fetchNotes: async () => {
     if (!get().token) return;
     set({ isLoading: true });
     try {
-      const { activeTag, searchQuery } = get();
-      const notes = await api.getNotes(activeTag, searchQuery || null);
+      const { searchQuery } = get();
+      const notes = await api.getNotes(searchQuery || null);
       set({ notes, isLoading: false, error: null });
     } catch (err) {
       if (err.message.includes("401")) get().logout();
@@ -79,7 +59,6 @@ export const useStore = create((set, get) => ({
     try {
       await api.createNote(content.trim());
       await get().fetchNotes();
-      await get().fetchTags();
     } catch (err) {
       set({ error: err.message });
     } finally {
@@ -108,7 +87,6 @@ export const useStore = create((set, get) => ({
     try {
       await api.deleteNote(noteId);
       set((state) => ({ notes: state.notes.filter((n) => n.id !== noteId) }));
-      get().fetchTags();
     } catch (err) {
       console.error("deleteNote:", err);
     }
