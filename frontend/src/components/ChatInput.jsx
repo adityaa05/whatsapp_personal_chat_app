@@ -8,13 +8,11 @@ export default function ChatInput() {
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
     if (!content.trim()) return;
-
     await addNote(content);
-    setContent(""); // Clear the box after successful save
+    setContent("");
   };
 
   const handleKeyDown = (e) => {
-    // Submit on Enter, but allow Shift+Enter for a new line
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
@@ -22,27 +20,67 @@ export default function ChatInput() {
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="p-4 bg-slate-50 border-t border-slate-200"
-    >
-      <textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        onKeyDown={handleKeyDown}
-        className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none font-mono text-sm"
-        rows="4"
-        placeholder="Paste ChatGPT Markdown, Code, or thoughts here... (Press Enter to save, Shift+Enter for new line)"
-      />
-      <div className="flex justify-end mt-2">
-        <button
-          type="submit"
-          disabled={!content.trim()}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-5 py-2 rounded-md font-medium transition-colors"
+    <div id="chat-input-area">
+      <div style={{ marginBottom: "4px" }}>
+        <span
+          style={{
+            background: "#003b73",
+            color: "white",
+            fontSize: "11px",
+            fontWeight: "700",
+            padding: "3px 10px",
+            display: "inline-block",
+            borderRadius: "3px 3px 0 0",
+          }}
         >
-          Save Note
-        </button>
+          Add New Note
+        </span>
       </div>
-    </form>
+      <div
+        style={{
+          background: "#f6f6f6",
+          border: "1px solid #cfcfcf",
+          padding: "8px",
+          boxShadow: "inset 0 1px 0 #fff, inset 0 -1px 0 #d6d6d6",
+        }}
+      >
+        <div className="input-row">
+          <textarea
+            className="erp-textarea"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            onKeyDown={handleKeyDown}
+            rows={3}
+            placeholder="Paste Markdown, code snippets, or notes here... (Enter to save, Shift+Enter for new line)"
+            style={{ fontSize: "12px" }}
+          />
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: "6px",
+            marginTop: "6px",
+          }}
+        >
+          <button
+            className="btn-secondary"
+            type="button"
+            onClick={() => setContent("")}
+            disabled={!content.trim()}
+          >
+            Clear
+          </button>
+          <button
+            className="btn-primary"
+            type="button"
+            onClick={handleSubmit}
+            disabled={!content.trim()}
+          >
+            Save Note
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

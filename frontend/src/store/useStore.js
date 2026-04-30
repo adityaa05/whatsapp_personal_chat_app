@@ -2,85 +2,145 @@ import { create } from "zustand";
 import { api } from "../services/api";
 
 export const useStore = create((set, get) => ({
-  // Auth State
+  // Auth
   token: localStorage.getItem("kb_token") || null,
   authError: null,
   isLoggingIn: false,
 
-  // App State
+  // UI state
   notes: [],
   tags: [],
   activeTag: null,
+  searchQuery: "",
   isLoading: false,
   error: null,
+  isSaving: false,
 
-  // NEW: Auth Actions
   login: async (username, password) => {
     set({ isLoggingIn: true, authError: null });
     try {
       const data = await api.login(username, password);
       localStorage.setItem("kb_token", data.access_token);
       set({ token: data.access_token, isLoggingIn: false });
-
-      // Fetch data immediately after successful login
       get().fetchTags();
       get().fetchNotes();
-    } catch (error) {
-      set({ authError: error.message, isLoggingIn: false });
+    } catch (err) {
+      set({ authError: err.message, isLoggingIn: false });
     }
   },
 
   logout: () => {
     localStorage.removeItem("kb_token");
-    // Clear all sensitive data from memory
-    set({ token: null, notes: [], tags: [], activeTag: null, authError: null });
+    set({
+      token: null,
+      notes: [],
+      tags: [],
+      activeTag: null,
+      searchQuery: "",
+      authError: null,
+    });
   },
 
-  // Existing Actions
   setActiveTag: (tag) => {
-    set({ activeTag: tag });
+    set({ activeTag: tag, searchQuery: "" });
     get().fetchNotes();
   },
 
+  setSearchQuery: (q) => {
+    set({ searchQuery: q });
+  },
+
   fetchTags: async () => {
-    if (!get().token) return; // Don't fetch if not logged in
+    if (!get().token) return;
     try {
       const tags = await api.getTags();
       set({ tags });
-    } catch (error) {
-      console.error("Failed to fetch tags", error);
+    } catch (e) {
+      console.error("fetchTags:", e);
     }
   },
 
   fetchNotes: async () => {
-    if (!get().token) return; // Don't fetch if not logged in
+    if (!get().token) return;
     set({ isLoading: true });
     try {
-      const notes = await api.getNotes(get().activeTag);
+      const { activeTag, searchQuery } = get();
+      const notes = await api.getNotes(activeTag, searchQuery || null);
       set({ notes, isLoading: false, error: null });
-    } catch (error) {
-      // If unauthorized, log the user out
-      if (error.message.includes("401")) get().logout();
-      set({ error: error.message, isLoading: false });
+    } catch (err) {
+      if (err.message.includes("401")) get().logout();
+      set({ error: err.message, isLoading: false });
     }
   },
 
   addNote: async (content) => {
+    if (!content.trim()) return;
+    set({ isSaving: true });
     try {
-      await api.createNote(content);
-      get().fetchNotes();
+      await api.createNote(content.trim());
+      await get().fetchNotes();
+      await get().fetchTags();
+    } catch (err) {
+      set({ error: err.message });
+    } finally {
+      set({ isSaving: false });
+    }
+  },
+
+  togglePin: async (noteId) => {
+    try {
+      const updated = await api.togglePin(noteId);
+      set((state) => ({
+        notes: state.notes
+          .map((n) => (n.id === noteId ? updated : n))
+          .sort(
+            (a, b) =>
+              b.is_pinned - a.is_pinned ||
+              new Date(b.created_at) - new Date(a.created_at),
+          ),
+      }));
+    } catch (err) {
+      console.error("togglePin:", err);
+    }
+  },
+
+  deleteNote: async (noteId) => {
+    try {
+      await api.deleteNote(noteId);
+      set((state) => ({ notes: state.notes.filter((n) => n.id !== noteId) }));
       get().fetchTags();
-    } catch (error) {
-      set({ error: error.message });
+    } catch (err) {
+      console.error("deleteNote:", err);
     }
   },
 
   addComment: async (noteId, content) => {
     try {
-      await api.addComment(noteId, content);
-      get().fetchNotes();
-    } catch (error) {
-      console.error("Failed to post comment", error);
+      const comment = await api.addComment(noteId, content);
+      set((state) => ({
+        notes: state.notes.map((n) =>
+          n.id === noteId
+            ? { ...n, comments: [...(n.comments || []), comment] }
+            : n,
+        ),
+      }));
+    } catch (err) {
+      console.error("addComment:", err);
+    }
+  },
+
+  deleteComment: async (noteId, commentId) => {
+    try {
+      await api.deleteComment(noteId, commentId);
+      set((state) => ({
+        notes: state.notes.map((n) =>
+          n.id === noteId
+            ? { ...n, comments: n.comments.filter((c) => c.id !== commentId) }
+            : n,
+        ),
+      }));
+    } catch (err) {
+      console.error("deleteComment:", err);
     }
   },
 }));

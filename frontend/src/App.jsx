@@ -1,83 +1,251 @@
-import React, { useEffect } from "react";
-import NoteList from "./components/NoteList";
-import ChatInput from "./components/ChatInput";
+import React, { useEffect, useState, useCallback } from "react";
 import Login from "./components/Login";
+import NoteCard from "./components/Notecard";
+import NoteInput from "./components/NoteList";
 import { useStore } from "./store/useStore";
 
-function App() {
-  const { tags, activeTag, setActiveTag, fetchTags, token, logout } =
-    useStore();
-
-  // Only load tags if we are logged in
+function HeaderClock() {
+  const [t, setT] = useState(new Date());
   useEffect(() => {
-    if (token) fetchTags();
-  }, [token, fetchTags]);
-
-  // THE BOUNCER: If no token, show login screen
-  if (!token) {
-    return <Login />;
-  }
-
-  // If logged in, show the secure app
+    const id = setInterval(() => setT(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const pad = (n) => String(n).padStart(2, "0");
+  const d = `${pad(t.getDate())}/${pad(t.getMonth() + 1)}/${t.getFullYear()}`;
+  const time = `${pad(t.getHours())}:${pad(t.getMinutes())}`;
   return (
-    <div className="flex h-screen bg-slate-50">
-      <div className="w-64 bg-slate-900 text-slate-300 p-4 hidden md:flex flex-col overflow-y-auto">
-        <h1 className="text-xl font-bold text-white mb-6 tracking-tight">
-          Knowledge Base
-        </h1>
-
-        <div className="text-sm space-y-2 flex-1">
-          <p
-            onClick={() => setActiveTag(null)}
-            className={`cursor-pointer px-2 py-1.5 rounded-md transition-colors font-medium ${
-              activeTag === null
-                ? "bg-blue-600 text-white"
-                : "hover:bg-slate-800 hover:text-white text-slate-400"
-            }`}
-          >
-            # All Notes
-          </p>
-
-          <div className="my-4 border-b border-slate-700"></div>
-
-          {tags.map((tag) => (
-            <p
-              key={tag.id}
-              onClick={() => setActiveTag(tag.name)}
-              className={`cursor-pointer px-2 py-1.5 rounded-md transition-colors ${
-                activeTag === tag.name
-                  ? "bg-slate-700 text-blue-400 font-medium"
-                  : "hover:bg-slate-800 hover:text-white text-slate-400"
-              }`}
-            >
-              # {tag.name}
-            </p>
-          ))}
-        </div>
-
-        {/* NEW: Logout Button */}
-        <div className="pt-4 mt-4 border-t border-slate-800">
-          <button
-            onClick={logout}
-            className="w-full text-left px-2 py-1.5 text-sm text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-md transition-colors"
-          >
-            Log Out
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-1 flex flex-col h-full max-w-5xl mx-auto border-x border-slate-200 bg-white shadow-sm w-full relative">
-        <header className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white z-10">
-          <h2 className="text-lg font-semibold text-slate-800">
-            {activeTag ? `Filtering: #${activeTag}` : "My Scratchpad"}
-          </h2>
-        </header>
-
-        <NoteList />
-        <ChatInput />
-      </div>
-    </div>
+    <span className="header-time">
+      ⏱ {d} {time}
+    </span>
   );
 }
 
-export default App;
+export default function App() {
+  const {
+    token,
+    logout,
+    notes,
+    tags,
+    isLoading,
+    error,
+    activeTag,
+    setActiveTag,
+    searchQuery,
+    setSearchQuery,
+    fetchNotes,
+    fetchTags,
+  } = useStore();
+
+  const [searchDraft, setSearchDraft] = useState("");
+
+  useEffect(() => {
+    if (token) {
+      fetchTags();
+      fetchNotes();
+    }
+  }, [token]);
+
+  // Debounced search
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setSearchQuery(searchDraft);
+    }, 350);
+    return () => clearTimeout(id);
+  }, [searchDraft]);
+
+  useEffect(() => {
+    if (token) fetchNotes();
+  }, [searchQuery, activeTag]);
+
+  if (!token) return <Login />;
+
+  const pinnedCount = notes.filter((n) => n.is_pinned).length;
+
+  return (
+    <div id="shell">
+      {/* HEADER */}
+      <header id="header">
+        <div className="header-brand">
+          <div className="brand-logo">KB</div>
+          <div className="brand-name">
+            Knowledge<em>BASE</em>®
+          </div>
+        </div>
+
+        <div className="header-center">
+          <span className="search-icon">🔍</span>
+          <input
+            className="search-input"
+            placeholder="Search notes..."
+            value={searchDraft}
+            onChange={(e) => {
+              setSearchDraft(e.target.value);
+              if (activeTag) setActiveTag(null);
+            }}
+          />
+        </div>
+
+        <div className="header-right">
+          <span className="header-welcome">Welcome, administrator!</span>
+          <HeaderClock />
+          <button className="hbtn">?</button>
+          <button className="hbtn danger" onClick={logout}>
+            Logout
+          </button>
+        </div>
+      </header>
+
+      {/* BODY */}
+      <div id="body">
+        {/* SIDEBAR */}
+        <nav id="sidebar">
+          <div className="sidebar-section-label">Navigation</div>
+
+          <div
+            className={`nav-item${!activeTag && !searchQuery ? " active" : ""}`}
+            onClick={() => {
+              setActiveTag(null);
+              setSearchDraft("");
+            }}
+          >
+            <span className="nav-icon">📋</span>
+            All Notes
+            <span className="nav-badge">{notes.length}</span>
+          </div>
+
+          {pinnedCount > 0 && (
+            <div
+              className={`nav-item${activeTag === "__pinned__" ? " active" : ""}`}
+              onClick={() => {
+                setSearchDraft("");
+                setActiveTag(null);
+                useStore.setState({ notes: notes.filter((n) => n.is_pinned) });
+              }}
+              style={{
+                color: activeTag === "__pinned__" ? "white" : "#f5c842",
+              }}
+            >
+              <span className="nav-icon">📌</span>
+              Pinned
+              <span className="nav-badge" style={{ background: "#c9860a" }}>
+                {pinnedCount}
+              </span>
+            </div>
+          )}
+
+          {tags.length > 0 && (
+            <>
+              <div className="sidebar-section-label" style={{ marginTop: 6 }}>
+                Tags
+              </div>
+              {tags.map((tag) => (
+                <div
+                  key={tag.id}
+                  className={`nav-item${activeTag === tag.name ? " active" : ""}`}
+                  onClick={() => {
+                    setActiveTag(tag.name);
+                    setSearchDraft("");
+                  }}
+                >
+                  <span className="nav-icon" style={{ fontSize: "10px" }}>
+                    #
+                  </span>
+                  <span className="truncate">{tag.name}</span>
+                </div>
+              ))}
+            </>
+          )}
+
+          <div className="sidebar-spacer" />
+
+          <div
+            className="nav-item"
+            onClick={logout}
+            style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}
+          >
+            <span className="nav-icon">🔓</span>
+            Sign Out
+          </div>
+        </nav>
+
+        {/* CONTENT */}
+        <div id="content">
+          {/* TOOLBAR */}
+          <div id="toolbar">
+            <span className="toolbar-title">My Notes</span>
+            {(activeTag || searchQuery) && (
+              <>
+                <span className="toolbar-sep">/</span>
+                <span className="toolbar-crumb">
+                  {activeTag ? `#${activeTag}` : `Search: "${searchQuery}"`}
+                </span>
+              </>
+            )}
+
+            <div className="toolbar-right">
+              <span className="record-count">
+                {isLoading
+                  ? "Loading..."
+                  : `${notes.length} record${notes.length !== 1 ? "s" : ""}`}
+              </span>
+              {(activeTag || searchQuery) && (
+                <button
+                  className="tb-filter-btn"
+                  onClick={() => {
+                    setActiveTag(null);
+                    setSearchDraft("");
+                  }}
+                >
+                  ✕ Clear filter
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* NOTE LIST */}
+          <div id="note-scroll">
+            {isLoading ? (
+              <div className="state-box">
+                <div className="state-icon">⏳</div>
+                <div className="state-label">Loading records...</div>
+              </div>
+            ) : error ? (
+              <div className="state-box">
+                <div className="state-icon">⚠</div>
+                <div className="state-label">Database Error</div>
+                <div className="state-sub">{error}</div>
+              </div>
+            ) : notes.length === 0 ? (
+              <div className="state-box">
+                <div className="state-icon">📭</div>
+                <div className="state-label">
+                  {searchQuery
+                    ? `No results for "${searchQuery}"`
+                    : "No notes yet"}
+                </div>
+                <div className="state-sub">
+                  {searchQuery
+                    ? "Try a different search term or clear the filter"
+                    : "Use the input below to start adding notes. Paste anything — links, code, text, markdown."}
+                </div>
+              </div>
+            ) : (
+              notes.map((note, i) => (
+                <NoteCard key={note.id} note={note} index={notes.length - i} />
+              ))
+            )}
+          </div>
+
+          {/* INPUT */}
+          <NoteInput />
+        </div>
+      </div>
+
+      {/* FOOTER */}
+      <footer id="footer">
+        <span className="footer-left">FastAPI + PostgreSQL + React</span>
+        <span>Powered by KnowledgeBASE® v2.0</span>
+      </footer>
+    </div>
+  );
+}
